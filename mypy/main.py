@@ -11,7 +11,7 @@ from collections import defaultdict
 from gettext import gettext
 from typing import IO, Any, Final, NoReturn, Sequence, TextIO
 
-from mypy import build, defaults, state, util
+from mypy import build, defaults, state, util, codegraph
 from mypy.config_parser import (
     get_config_module_names,
     parse_config_file,
@@ -1184,6 +1184,8 @@ def process_options(
     # This flag is deprecated, it has been moved to --extra-checks
     parser.add_argument("--strict-concatenate", action="store_true", help=argparse.SUPPRESS)
 
+    parser.add_argument("--codegraph", type=str)
+
     # options specifying code to check
     code_group = parser.add_argument_group(
         title="Running code",
@@ -1411,6 +1413,9 @@ def process_options(
 
     if options.strict_concatenate and not strict_option_set:
         print("Warning: --strict-concatenate is deprecated; use --extra-checks instead")
+    
+    if options.codegraph:
+        codegraph.enable(options.codegraph)
 
     # Set target.
     if special_opts.modules + special_opts.packages:

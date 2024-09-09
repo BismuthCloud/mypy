@@ -16,6 +16,7 @@ from mypy import applytype, erasetype, join, message_registry, nodes, operators,
 from mypy.argmap import ArgTypeExpander, map_actuals_to_formals, map_formals_to_actuals
 from mypy.checkmember import analyze_member_access, freeze_all_type_vars, type_object_type
 from mypy.checkstrformat import StringFormatterChecker
+from mypy.codegraph import record_function_call
 from mypy.erasetype import erase_type, remove_instance_last_known_values, replace_meta_vars
 from mypy.errors import ErrorWatcher, report_internal_error
 from mypy.expandtype import (
@@ -1653,6 +1654,10 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         ret_type = get_proper_type(callee.ret_type)
         if callee.is_type_obj() and isinstance(ret_type, Instance):
             callable_name = ret_type.type.fullname
+
+        if callable_name:
+            record_function_call(self.chk, callable_name, context)
+
         if isinstance(callable_node, RefExpr) and callable_node.fullname in ENUM_BASES:
             # An Enum() call that failed SemanticAnalyzerPass2.check_enum_call().
             return callee.ret_type, callee

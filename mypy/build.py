@@ -44,6 +44,7 @@ from typing_extensions import TypeAlias as _TypeAlias, TypedDict
 
 import mypy.semanal_main
 from mypy.checker import TypeChecker
+from mypy.codegraph import record_invalidate, record_import
 from mypy.error_formatter import OUTPUT_CHOICES, ErrorFormatter
 from mypy.errors import CompileError, ErrorInfo, Errors, report_internal_error
 from mypy.graph_utils import prepare_sccs, strongly_connected_components, topsort
@@ -2294,6 +2295,7 @@ class State:
             self.tree
         ) + self.manager.plugin.get_additional_deps(self.tree)
         for pri, id, line in dep_entries:
+            record_import(self.id, id)
             self.priorities[id] = min(pri, self.priorities.get(id, PRI_ALL))
             if id == self.id:
                 continue
@@ -3431,6 +3433,7 @@ def process_stale_scc(graph: Graph, scc: list[str], manager: BuildManager) -> No
     """
     stale = scc
     for id in stale:
+        record_invalidate(id)
         # We may already have parsed the module, or not.
         # If the former, parse_file() is a no-op.
         graph[id].parse_file()
