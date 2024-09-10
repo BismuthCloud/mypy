@@ -23,27 +23,26 @@ from enum import Enum
 if TYPE_CHECKING:
     from mypy.nodes import MypyFile
 
-# TODO: decorator usage? treat as call by the function?
 
 _output: io.TextIOBase | None = None
-_filter_files: list[str] = []
+_filter_paths: list[str] = []
 _module_map: dict[str, pathlib.Path] = {}
 
 
-def enable(output_path: str, files: list[str]):
+def enable(output_path: str, paths: list[str]):
     """
     Enable codegraph recording.
     """
-    global _output, _filter_files
+    global _output, _filter_paths
     if output_path == "stdout":
         _output = sys.stdout
     else:
         _output = open(output_path, "w")
-    _filter_files = [pathlib.Path(f).resolve() for f in files]
+    _filter_paths = [pathlib.Path(p).resolve() for p in paths]
 
 
 def _path_filter(p: pathlib.Path):
-    return any(p.resolve().is_relative_to(filt) for filt in _filter_files)
+    return any(p.resolve().is_relative_to(filt) for filt in _filter_paths)
 
 
 def _record(f: "MypyFile", j: dict[str, Any]):
