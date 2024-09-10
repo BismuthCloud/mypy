@@ -15,55 +15,75 @@ Specific points within mypy have hooks which call into this module to record the
 
 import io
 import json
+import pathlib
 import sys
 from typing import TYPE_CHECKING, Any
 from enum import Enum
 
 if TYPE_CHECKING:
-    from mypy.checker import TypeChecker
-    from mypy.nodes import Context
+    from mypy.nodes import MypyFile
 
 # TODO: decorator usage? treat as call by the function?
 
 _output: io.TextIOBase | None = None
+_filter_files: list[str] = []
+_module_map: dict[str, pathlib.Path] = {}
 
 
-def enable(output_path: str):
-    global _output
+def enable(output_path: str, files: list[str]):
     """
     Enable codegraph recording.
     """
+    global _output, _filter_files
     if output_path == "stdout":
         _output = sys.stdout
     else:
         _output = open(output_path, "w")
+    _filter_files = [pathlib.Path(f).resolve() for f in files]
 
 
-def _record(j: dict[str, Any]):
-    if _output:
-        json.dump(j, _output)
+def _path_filter(p: pathlib.Path):
+    return any(p.resolve().is_relative_to(filt) for filt in _filter_files)
+
+
+def _record(f: "MypyFile", j: dict[str, Any]):
+    if _output and _path_filter(pathlib.Path(f.path)):
+        json.dump(j | {"file": f.path}, _output)
         _output.write("\n")
 
 
-def record_invalidate(module: str):
+def record_module(f: "MypyFile"):
+    """
+    Record a module definition - mainly used for dotted module name -> filename resolution (for filtering).
+    """
+    _module_map[f._fullname] = pathlib.Path(f.path)
+    _record(f, {"type": "module", "module": f._fullname})
+
+
+def record_import(f: "MypyFile", importer: str, importee: str):
+    """
+    Record an import statement.
+    Called _before_ invalidation since the import graph has to be resolved before the SCCs can be determined.
+    """
+    _record(f, {"type": "import", "importer": importer, "importee": importee})
+
+
+def record_invalidate(f: "MypyFile", module: str):
     """
     Record that a given module is invalidated.
     Marked when a SCC is determined to be stale and is about to be rechecked.
     """
-    _record({"type": "invalidate", "module": module})
+    _record(f, {"type": "invalidate", "module": module})
 
 
-def record_import(importer: str, importee: str):
-    _record({"type": "import", "importer": importer, "importee": importee})
+def record_class_def(f: "MypyFile", fullname: str):
+    _record(f, {"type": "class_def", "fullname": fullname})
 
 
-def record_class_def(module: str, name: str):
-    _record({"type": "class_def", "module": module, "name": name})
-
-
-class ClassRefSource(Enum):
+class ClassRefKind(Enum):
     INHERITANCE = 1
     INSTANTIATION = 2
+    # Below are TODO
     # class is used as a type in a function prototype (either args or return type)
     TYPE_IN_FUNCTION_PROTOTYPE = 3
     # type of an instance variable
@@ -75,22 +95,17 @@ class ClassRefSource(Enum):
     # sorta like pseudo-inlay hints for the llm
 
 
-def record_class_ref(src: str, dst: str, kind: ClassRefSource):
-    _record({"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
+def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind):
+    dst_module = dst.rsplit(".", 1)[0]
+    if dst_module in _module_map and _path_filter(_module_map[dst_module]):
+        _record(f, {"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
 
 
-def record_function_def(fullname: str):
-    _record({"type": "function_def", "fullname": fullname})
+def record_function_def(f: "MypyFile", fullname: str):
+    _record(f, {"type": "function_def", "fullname": fullname})
 
 
-def record_function_call(chk: "TypeChecker", callee: str, context: "Context"):
-    """
-    Record a function call.
-    Called from ExpressionChecker.
-    """
-    # FQN
-    caller = chk.tscope.current_full_target()
-    # Module object this call is in
-    module = chk.modules[chk.tscope.module]
-    # TODO: filter by file
-    _record({"type": "call", "caller": caller, "callee": callee})
+def record_function_call(f: "MypyFile", caller: str, callee: str):
+    callee_module = callee.rsplit(".", 1)[0]
+    if callee_module in _module_map and _path_filter(_module_map[callee_module]):
+        _record(f, {"type": "call", "caller": caller, "callee": callee})

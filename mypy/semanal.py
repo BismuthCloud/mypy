@@ -55,7 +55,7 @@ from typing import Any, Callable, Collection, Final, Iterable, Iterator, List, T
 from typing_extensions import TypeAlias as _TypeAlias, TypeGuard
 
 from mypy import errorcodes as codes, message_registry
-from mypy.codegraph import ClassRefSource, record_class_def, record_class_ref, record_function_def
+from mypy.codegraph import ClassRefKind, record_class_def, record_class_ref, record_function_def
 from mypy.constant_fold import constant_fold_expr
 from mypy.errorcodes import PROPERTY_DECORATOR, ErrorCode
 from mypy.errors import Errors, report_internal_error
@@ -995,7 +995,7 @@ class SemanticAnalyzer(
                 self.wrapped_coro_return_types[defn] = defn.type
 
         # todo: associate with class in case of method
-        record_function_def(defn.fullname)
+        record_function_def(self.modules[self.cur_mod_id], defn.fullname)
 
         self.pop_type_args(defn.type_args)
 
@@ -1895,7 +1895,7 @@ class SemanticAnalyzer(
             self.analyze_class_body_common(defn)
 
         if self.type is None and not self.is_func_scope():
-            record_class_def(self.cur_mod_id, defn.name)
+            record_class_def(self.modules[self.cur_mod_id], fullname)
 
     def setup_type_vars(self, defn: ClassDef, tvar_defs: list[TypeVarLikeType]) -> None:
         defn.type_vars = tvar_defs
@@ -2490,7 +2490,12 @@ class SemanticAnalyzer(
         info.bases = base_types
 
         for t in base_types:
-            record_class_ref(defn.fullname, t.type.fullname, ClassRefSource.INHERITANCE)
+            record_class_ref(
+                self.modules[self.cur_mod_id],
+                defn.fullname,
+                t.type.fullname,
+                ClassRefKind.INHERITANCE,
+            )
 
         # Calculate the MRO.
         if not self.verify_base_classes(defn):

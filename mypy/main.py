@@ -1413,9 +1413,9 @@ def process_options(
 
     if options.strict_concatenate and not strict_option_set:
         print("Warning: --strict-concatenate is deprecated; use --extra-checks instead")
-    
+
     if options.codegraph:
-        codegraph.enable(options.codegraph)
+        codegraph.enable(options.codegraph, special_opts.files)
 
     # Set target.
     if special_opts.modules + special_opts.packages:

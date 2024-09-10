@@ -44,7 +44,7 @@ from typing_extensions import TypeAlias as _TypeAlias, TypedDict
 
 import mypy.semanal_main
 from mypy.checker import TypeChecker
-from mypy.codegraph import record_invalidate, record_import
+from mypy.codegraph import record_invalidate, record_import, record_module
 from mypy.error_formatter import OUTPUT_CHOICES, ErrorFormatter
 from mypy.errors import CompileError, ErrorInfo, Errors, report_internal_error
 from mypy.graph_utils import prepare_sccs, strongly_connected_components, topsort
@@ -841,6 +841,7 @@ class BuildManager:
             self.errors.ignored_files.add(path)
         tree = parse(source, path, id, self.errors, options=options)
         tree._fullname = id
+        record_module(tree)
         self.add_stats(
             files_parsed=1,
             modules_parsed=int(not tree.is_stub),
@@ -2295,7 +2296,7 @@ class State:
             self.tree
         ) + self.manager.plugin.get_additional_deps(self.tree)
         for pri, id, line in dep_entries:
-            record_import(self.id, id)
+            record_import(self.tree, self.id, id)
             self.priorities[id] = min(pri, self.priorities.get(id, PRI_ALL))
             if id == self.id:
                 continue
@@ -3433,7 +3434,7 @@ def process_stale_scc(graph: Graph, scc: list[str], manager: BuildManager) -> No
     """
     stale = scc
     for id in stale:
-        record_invalidate(id)
+        record_invalidate(graph[id].tree, id)
         # We may already have parsed the module, or not.
         # If the former, parse_file() is a no-op.
         graph[id].parse_file()
