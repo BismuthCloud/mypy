@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 _output: io.TextIOBase | None = None
-_filter_paths: list[str] = []
+_filter_path: pathlib.Path | None = None
 _module_map: dict[str, pathlib.Path] = {}
 
 
@@ -33,22 +33,24 @@ def enable(output_path: str, paths: list[str]):
     """
     Enable codegraph recording.
     """
-    global _output, _filter_paths
+    global _output, _filter_path
     if output_path == "stdout":
         _output = sys.stdout
     else:
         _output = open(output_path, "w")
-    _filter_paths = [pathlib.Path(p).resolve() for p in paths]
+    _filter_path = pathlib.Path(paths[0]).resolve()
 
 
-def _path_filter(p: pathlib.Path):
-    return any(p.resolve().is_relative_to(filt) for filt in _filter_paths)
+def _path_filter(path: pathlib.Path) -> bool:
+    return path.resolve().is_relative_to(_filter_path)
 
 
 def _record(f: "MypyFile", j: dict[str, Any]):
-    if _output and _path_filter(pathlib.Path(f.path)):
-        json.dump(j | {"file": f.path}, _output)
+    path = pathlib.Path(f.path).resolve()
+    if _output and _path_filter(path):
+        json.dump(j | {"file": str(path.relative_to(_filter_path))}, _output)
         _output.write("\n")
+        _output.flush()
 
 
 def record_module(f: "MypyFile"):
