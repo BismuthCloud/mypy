@@ -995,7 +995,9 @@ class SemanticAnalyzer(
                 self.wrapped_coro_return_types[defn] = defn.type
 
         # todo: associate with class in case of method
-        record_function_def(self.modules[self.cur_mod_id], defn.fullname)
+        record_function_def(
+            self.modules[self.cur_mod_id], defn.fullname, (defn.line, defn.end_line)
+        )
 
         self.pop_type_args(defn.type_args)
 
@@ -1895,7 +1897,7 @@ class SemanticAnalyzer(
             self.analyze_class_body_common(defn)
 
         if self.type is None and not self.is_func_scope():
-            record_class_def(self.modules[self.cur_mod_id], fullname)
+            record_class_def(self.modules[self.cur_mod_id], fullname, (defn.line, defn.end_line))
 
     def setup_type_vars(self, defn: ClassDef, tvar_defs: list[TypeVarLikeType]) -> None:
         defn.type_vars = tvar_defs

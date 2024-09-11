@@ -75,8 +75,8 @@ def record_invalidate(f: "MypyFile", module: str):
     _record(f, {"type": "invalidate", "module": module})
 
 
-def record_class_def(f: "MypyFile", fullname: str):
-    _record(f, {"type": "class_def", "fullname": fullname})
+def record_class_def(f: "MypyFile", fullname: str, line_range: tuple[int, int]):
+    _record(f, {"type": "class_def", "fullname": fullname, "line_range": line_range})
 
 
 class ClassRefKind(Enum):
@@ -100,8 +100,8 @@ def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind):
         _record(f, {"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
 
 
-def record_function_def(f: "MypyFile", fullname: str):
-    _record(f, {"type": "function_def", "fullname": fullname})
+def record_function_def(f: "MypyFile", fullname: str, line_range: tuple[int, int]):
+    _record(f, {"type": "function_def", "fullname": fullname, "line_range": line_range})
 
 
 def record_function_call(f: "MypyFile", caller: str, callee: str):
