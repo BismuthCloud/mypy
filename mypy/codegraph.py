@@ -42,6 +42,8 @@ def enable(output_path: str, paths: list[str]):
 
 
 def _path_filter(path: pathlib.Path) -> bool:
+    if _filter_path is None:
+        return False
     return path.resolve().is_relative_to(_filter_path)
 
 
