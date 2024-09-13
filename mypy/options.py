@@ -384,6 +384,7 @@ class Options:
         self.output: str | None = None
 
         self.codegraph: str | None = None
+        self.codegraph_filter_root: str | None = None
 
     def use_lowercase_names(self) -> bool:
         if self.python_version >= (3, 9):

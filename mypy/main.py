@@ -1185,6 +1185,7 @@ def process_options(
     parser.add_argument("--strict-concatenate", action="store_true", help=argparse.SUPPRESS)
 
     parser.add_argument("--codegraph", type=str)
+    parser.add_argument("--codegraph-filter-root", type=str)
 
     # options specifying code to check
     code_group = parser.add_argument_group(
@@ -1415,7 +1416,7 @@ def process_options(
         print("Warning: --strict-concatenate is deprecated; use --extra-checks instead")
 
     if options.codegraph:
-        codegraph.enable(options.codegraph, special_opts.files)
+        codegraph.enable(options.codegraph, options.codegraph_filter_root or special_opts.files[0])
 
     # Set target.
     if special_opts.modules + special_opts.packages:

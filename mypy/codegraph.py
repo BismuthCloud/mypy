@@ -29,7 +29,7 @@ _filter_path: pathlib.Path | None = None
 _module_map: dict[str, pathlib.Path] = {}
 
 
-def enable(output_path: str, paths: list[str]):
+def enable(output_path: str, root: str):
     """
     Enable codegraph recording.
     """
@@ -38,7 +38,7 @@ def enable(output_path: str, paths: list[str]):
         _output = sys.stdout
     else:
         _output = open(output_path, "w")
-    _filter_path = pathlib.Path(paths[0]).resolve()
+    _filter_path = pathlib.Path(root).resolve()
 
 
 def _path_filter(path: pathlib.Path) -> bool:
