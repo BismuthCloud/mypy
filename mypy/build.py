@@ -3434,10 +3434,10 @@ def process_stale_scc(graph: Graph, scc: list[str], manager: BuildManager) -> No
     """
     stale = scc
     for id in stale:
-        record_invalidate(graph[id].tree, id)
         # We may already have parsed the module, or not.
         # If the former, parse_file() is a no-op.
         graph[id].parse_file()
+        record_invalidate(graph[id].tree, id)
     if "typing" in scc:
         # For historical reasons we need to manually add typing aliases
         # for built-in generic collections, see docstring of

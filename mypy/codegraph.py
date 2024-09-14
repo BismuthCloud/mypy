@@ -17,7 +17,7 @@ import io
 import json
 import pathlib
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -29,15 +29,12 @@ _filter_path: pathlib.Path | None = None
 _module_map: dict[str, pathlib.Path] = {}
 
 
-def enable(output_path: str, root: str):
+def enable(output_path: str, root: str) -> None:
     """
     Enable codegraph recording.
     """
     global _output, _filter_path
-    if output_path == "stdout":
-        _output = sys.stdout
-    else:
-        _output = open(output_path, "w")
+    _output = open(output_path, "w")
     _filter_path = pathlib.Path(root).resolve()
 
 
@@ -47,15 +44,15 @@ def _path_filter(path: pathlib.Path) -> bool:
     return path.resolve().is_relative_to(_filter_path)
 
 
-def _record(f: "MypyFile", j: dict[str, Any]):
+def _record(f: "MypyFile", j: dict[str, Any]) -> None:
     path = pathlib.Path(f.path).resolve()
-    if _output and _path_filter(path):
+    if _output and _filter_path and _path_filter(path):
         json.dump(j | {"file": str(path.relative_to(_filter_path))}, _output)
         _output.write("\n")
         _output.flush()
 
 
-def record_module(f: "MypyFile"):
+def record_module(f: "MypyFile") -> None:
     """
     Record a module definition - mainly used for dotted module name -> filename resolution (for filtering).
     """
@@ -63,7 +60,7 @@ def record_module(f: "MypyFile"):
     _record(f, {"type": "module", "module": f._fullname})
 
 
-def record_import(f: "MypyFile", importer: str, importee: str):
+def record_import(f: "MypyFile", importer: str, importee: str) -> None:
     """
     Record an import statement.
     Called _before_ invalidation since the import graph has to be resolved before the SCCs can be determined.
@@ -71,15 +68,16 @@ def record_import(f: "MypyFile", importer: str, importee: str):
     _record(f, {"type": "import", "importer": importer, "importee": importee})
 
 
-def record_invalidate(f: "MypyFile", module: str):
+def record_invalidate(f: Optional["MypyFile"], module: str) -> None:
     """
     Record that a given module is invalidated.
     Marked when a SCC is determined to be stale and is about to be rechecked.
     """
-    _record(f, {"type": "invalidate", "module": module})
+    if f is not None:
+        _record(f, {"type": "invalidate", "module": module})
 
 
-def record_class_def(f: "MypyFile", fullname: str, line_range: tuple[int, int]):
+def record_class_def(f: "MypyFile", fullname: str, line_range: tuple[int, int | None]) -> None:
     _record(f, {"type": "class_def", "fullname": fullname, "line_range": line_range})
 
 
@@ -98,17 +96,17 @@ class ClassRefKind(Enum):
     # sorta like pseudo-inlay hints for the llm
 
 
-def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind):
+def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind) -> None:
     dst_module = dst.rsplit(".", 1)[0]
     if dst_module in _module_map and _path_filter(_module_map[dst_module]):
         _record(f, {"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
 
 
-def record_function_def(f: "MypyFile", fullname: str, line_range: tuple[int, int]):
+def record_function_def(f: "MypyFile", fullname: str, line_range: tuple[int, int | None]) -> None:
     _record(f, {"type": "function_def", "fullname": fullname, "line_range": line_range})
 
 
-def record_function_call(f: "MypyFile", caller: str, callee: str):
+def record_function_call(f: "MypyFile", caller: str, callee: str) -> None:
     callee_module = callee.rsplit(".", 1)[0]
     if callee_module in _module_map and _path_filter(_module_map[callee_module]):
         _record(f, {"type": "call", "caller": caller, "callee": callee})

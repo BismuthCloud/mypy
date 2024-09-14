@@ -1655,7 +1655,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         if callee.is_type_obj() and isinstance(ret_type, Instance):
             callable_name = ret_type.type.fullname
 
-        if callable_name:
+        if callable_name and self.chk.tscope.module is not None:
             if callee.is_type_obj():
                 record_class_ref(
                     self.chk.modules[self.chk.tscope.module],
