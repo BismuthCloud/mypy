@@ -31,9 +31,34 @@ jobs:
           path: ./wheelhouse/*.whl
           overwrite: true
 
+  build_sdist_python_wheel:
+    name: sdist and python wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        name: Install Python
+        with:
+          python-version: "3.9"
+      - name: Run check-manifest
+        run: |
+          pip install check-manifest
+          check-manifest -v
+      - name: Build sdist and wheel
+        run: |
+          pip install --upgrade setuptools build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist_python_wheel
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          overwrite: true
+
   release:
     name: create release
-    needs: [build_wheels]
+    needs: [build_wheels, build_sdist_python_wheel]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -74,3 +99,5 @@ jobs:
                 data: await fs.readFile(`./dist/${file}`)
               });
             }
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1

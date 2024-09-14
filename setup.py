@@ -195,7 +195,7 @@ classifiers = [
 ]
 
 setup(
-    name="mypy",
+    name="bismuth-mypy",
     version=version,
     description=description,
     long_description=long_description,
