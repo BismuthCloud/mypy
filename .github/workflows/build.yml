@@ -9,7 +9,6 @@ concurrency:
 jobs:
   build_wheels:
     name: Build ${{ matrix.only }}
-    needs: generate_wheels_matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
