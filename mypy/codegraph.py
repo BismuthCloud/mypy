@@ -16,17 +16,16 @@ Specific points within mypy have hooks which call into this module to record the
 import io
 import json
 import pathlib
-import sys
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Dict, Tuple
 from enum import Enum
 
 if TYPE_CHECKING:
     from mypy.nodes import MypyFile
 
 
-_output: io.TextIOBase | None = None
-_filter_path: pathlib.Path | None = None
-_module_map: dict[str, pathlib.Path] = {}
+_output: Optional[io.TextIOBase] = None
+_filter_path: Optional[pathlib.Path] = None
+_module_map: Dict[str, pathlib.Path] = {}
 
 
 def enable(output_path: str, root: str) -> None:
@@ -41,13 +40,14 @@ def enable(output_path: str, root: str) -> None:
 def _path_filter(path: pathlib.Path) -> bool:
     if _filter_path is None:
         return False
-    return path.resolve().is_relative_to(_filter_path)
+    return str(path.resolve()).startswith(str(_filter_path))
 
 
-def _record(f: "MypyFile", j: dict[str, Any]) -> None:
+def _record(f: "MypyFile", j: Dict[str, Any]) -> None:
     path = pathlib.Path(f.path).resolve()
     if _output and _filter_path and _path_filter(path):
-        json.dump(j | {"file": str(path.relative_to(_filter_path))}, _output)
+        j["file"] = str(path.relative_to(_filter_path))
+        json.dump(j, _output)
         _output.write("\n")
         _output.flush()
 
@@ -77,7 +77,7 @@ def record_invalidate(f: Optional["MypyFile"], module: str) -> None:
         _record(f, {"type": "invalidate", "module": module})
 
 
-def record_class_def(f: "MypyFile", fullname: str, line_range: tuple[int, int | None]) -> None:
+def record_class_def(f: "MypyFile", fullname: str, line_range: Tuple[int, Optional[int]]) -> None:
     _record(f, {"type": "class_def", "fullname": fullname, "line_range": line_range})
 
 
@@ -102,7 +102,9 @@ def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind) -> N
         _record(f, {"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
 
 
-def record_function_def(f: "MypyFile", fullname: str, line_range: tuple[int, int | None]) -> None:
+def record_function_def(
+    f: "MypyFile", fullname: str, line_range: Tuple[int, Optional[int]]
+) -> None:
     _record(f, {"type": "function_def", "fullname": fullname, "line_range": line_range})
 
 
