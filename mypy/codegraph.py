@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 _output: Optional[io.TextIOBase] = None
 _filter_path: Optional[pathlib.Path] = None
-_module_map: Dict[str, pathlib.Path] = {}
+_file_map: Dict[str, pathlib.Path] = {}
 
 
 def enable(output_path: str, root: str) -> None:
@@ -56,7 +56,7 @@ def record_module(f: "MypyFile") -> None:
     """
     Record a module definition - mainly used for dotted module name -> filename resolution (for filtering).
     """
-    _module_map[f._fullname] = pathlib.Path(f.path)
+    _file_map[f._fullname] = pathlib.Path(f.path)
     _record(f, {"type": "module", "module": f._fullname})
 
 
@@ -78,6 +78,7 @@ def record_invalidate(f: Optional["MypyFile"], module: str) -> None:
 
 
 def record_class_def(f: "MypyFile", fullname: str, line_range: Tuple[int, Optional[int]]) -> None:
+    _file_map[fullname] = pathlib.Path(f.path)
     _record(f, {"type": "class_def", "fullname": fullname, "line_range": line_range})
 
 
@@ -98,7 +99,7 @@ class ClassRefKind(Enum):
 
 def record_class_ref(f: "MypyFile", src: str, dst: str, kind: ClassRefKind) -> None:
     dst_module = dst.rsplit(".", 1)[0]
-    if dst_module in _module_map and _path_filter(_module_map[dst_module]):
+    if dst_module in _file_map and _path_filter(_file_map[dst_module]):
         _record(f, {"type": "class_ref", "src": src, "dst": dst, "kind": kind.name})
 
 
@@ -109,6 +110,7 @@ def record_function_def(
 
 
 def record_function_call(f: "MypyFile", caller: str, callee: str) -> None:
+    # misnomer, either module or class
     callee_module = callee.rsplit(".", 1)[0]
-    if callee_module in _module_map and _path_filter(_module_map[callee_module]):
+    if callee_module in _file_map and _path_filter(_file_map[callee_module]):
         _record(f, {"type": "call", "caller": caller, "callee": callee})
