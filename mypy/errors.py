@@ -283,6 +283,8 @@ class Errors:
 
     _watchers: list[ErrorWatcher] = []
 
+    formatter: ErrorFormatter | None = None
+
     def __init__(
         self,
         options: Options,
@@ -899,7 +901,7 @@ class Errors:
                     a.append(" " * (DEFAULT_SOURCE_OFFSET + column) + marker)
         return a
 
-    def file_messages(self, path: str, formatter: ErrorFormatter | None = None) -> list[str]:
+    def file_messages(self, path: str) -> list[str]:
         """Return a string list of new error messages from a given file.
 
         Use a form suitable for displaying to the user.
@@ -912,9 +914,9 @@ class Errors:
         error_tuples = self.render_messages(self.sort_messages(error_info))
         error_tuples = self.remove_duplicates(error_tuples)
 
-        if formatter is not None:
+        if self.formatter is not None:
             errors = create_errors(error_tuples)
-            return [formatter.report_error(err) for err in errors]
+            return [self.formatter.report_error(err) for err in errors]
 
         self.flushed_files.add(path)
         source_lines = None
